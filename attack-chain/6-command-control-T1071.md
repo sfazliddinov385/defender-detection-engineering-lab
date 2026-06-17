@@ -36,17 +36,17 @@ The connection ties back to the encoded command from Stage 2 — the same `power
 
 ## What Defender did
 
-Default Defender raised **no incident** for the connection. An HTTP connection on port 80 from PowerShell looks like any other web request without context. The activity was visible but didn't auto-detect.
+Default Defender raised **no incident** for the connection. An HTTP connection on port 80 from PowerShell looks like any other web request without context. The activity was visible but did not auto-detect.
 
 This is what my PowerShell Outbound Network Connection rule was built to catch. It flags `powershell.exe` connecting to common C2 ports (80, 443, 8080, 4444) and skips the system account.
 
 ## Tier 1 triage
 
-- **Started by:** `powershell.exe` making an outbound connection is itself notable. PowerShell hitting the network is much less common than a browser doing it.
-- **Where to:** 192.168.74.136 (Kali) on port 80. Tied to the Stage 2 decode, that's the exact host and path (`/payload.ps1`) from the cradle.
+- **Started by:** `powershell.exe` making an outbound connection is itself notable. PowerShell making network connections is much less common than a browser doing it.
+- **Destination:** 192.168.74.136 (Kali) on port 80. Tied to the Stage 2 decode, that is the exact host and path (`/payload.ps1`) from the cradle.
 - **Chain:** this is the same process as the encoded run. Execution and C2 are two views of one action.
 - **Verdict:** True Positive.
 
 ## Detection takeaway
 
-PowerShell connecting out to common C2 ports is a high-value, low-noise catch from `DeviceNetworkEvents`. The real tuning is around normal PowerShell network use (module updates, internal scripts). That's why the rule sticks to specific ports and skips the system account.
+PowerShell connecting out to common C2 ports is a high-value, low-noise catch from `DeviceNetworkEvents`. The main tuning consideration is normal PowerShell network use (module updates, internal scripts). That is why the rule sticks to specific ports and skips the system account.
