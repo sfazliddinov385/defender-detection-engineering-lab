@@ -1,31 +1,31 @@
 # Defender Detection Engineering Lab
 
-I ran a six-stage attack against two Windows 11 machines protected by **Microsoft Defender for Endpoint (MDE) Plan 2**. I watched what the EDR caught on its own. Then I built my own detection rules to catch what it missed, and ran a full incident response from start to finish.
+I ran a six-stage attack against two Windows 11 machines protected by **Microsoft Defender for Endpoint (MDE) Plan 2**. I observed what the EDR caught on its own. Then I built my own detection rules to catch what it missed, and ran a full incident response from start to finish.
 
 ---
 
 ## The main finding
 
-> **Out of the box, Microsoft Defender for Endpoint did not raise a single incident for the whole six-stage attack — even though it saw every step.**
+> **Out of the box, Microsoft Defender for Endpoint did not raise a single incident for the full six-stage attack — even though it recorded every step.**
 
-Every move used real credentials and payloads that looked harmless on their own. None of them tripped Defender's built-in detection. But the data was all there. I could find every stage with a KQL query. Defender had the visibility. It just didn't connect the dots into an alert.
+Every move used real credentials and payloads that looked harmless on their own. None of them tripped Defender's built-in detection. But the data was all there. I could find every stage with a KQL query. Defender had the visibility. It just did not correlate the activity into an alert.
 
-So I built **four custom KQL detection rules**. They caught the activity and created real incidents. One of them was a **multi-stage incident** that Defender named and correlated on its own from two separate alerts. From there I ran a **full incident response** and ended by wiping the foothold remotely through Live Response.
+So I built **four custom KQL detection rules**. They caught the activity and created real incidents. One was a **multi-stage incident** that Defender named and correlated on its own from two separate alerts. From there I ran a **full incident response** and ended by removing the foothold remotely through Live Response.
 
-The point: seeing an attack and detecting an attack are two different things. That gap is why detection engineering, threat hunting, and incident response are real jobs — you can't just trust the default alerts.
+The point: seeing an attack and detecting an attack are two different things. That gap is why detection engineering, threat hunting, and incident response are core security functions — you cannot rely on the default alerts alone.
 
 ### Before and after
 
 | | Incidents created |
 |---|---|
-| **Default Defender** (built-in only) | **0** — whole attack missed |
+| **Default Defender** (built-in only) | **0** — full attack missed |
 | **After my custom rules** | **3** — including 1 multi-stage incident |
 
 ![Default Defender generated 0 incidents from the full 6-stage attack chain](screenshots/18-incidents-empty-before.png)
 *Default Defender created 0 incidents from the full six-stage attack. Attack disruptions: None. Multi-alert incidents: 0%.*
 
 ![Incidents page after custom detection engineering](screenshots/16-incidents-populated-after.png)
-*After I turned on four custom rules, the same activity created three incidents — one of them multi-stage. Multi-alert incidents: 25%.*
+*After I enabled four custom rules, the same activity created three incidents — one of them multi-stage. Multi-alert incidents: 25%.*
 
 ---
 
@@ -33,7 +33,7 @@ The point: seeing an attack and detecting an attack are two different things. Th
 
 - **Real EDR work** — onboarding, KQL hunting, custom detection rules, incident triage, and Live Response on a live MDE Plan 2 tenant.
 - **Detection engineering** — four custom rules with proper entity mapping, plus a real false-positive tuning fix.
-- **Lateral movement** — two hosts, with a confirmed RDP jump from one victim to the other (T1021.001).
+- **Lateral movement** — two hosts, with a confirmed RDP pivot from one victim to the other (T1021.001).
 - **Full incident response** — a complete NIST SP 800-61 cycle: detect, triage, contain, investigate, eradicate, verify, recover.
 
 ---
@@ -76,7 +76,7 @@ Four continuous (NRT) rules built in Advanced Hunting. Each one maps entities so
 | Suspicious Run Key Persistence | T1547.001 | Persistence | DeviceRegistryEvents |
 | RDP Lateral Movement Detected | T1021.001 | Lateral Movement | DeviceLogonEvents |
 
-The persistence rule has a real before/after tuning fix. The first version flagged a harmless Microsoft Edge Run key along with the bad one. After tuning, it flagged only the bad one.
+The persistence rule has a real before/after tuning fix. The first version flagged a harmless Microsoft Edge Run key along with the malicious one. After tuning, it flagged only the malicious one.
 
 ---
 
@@ -85,7 +85,7 @@ The persistence rule has a real before/after tuning fix. The first version flagg
 Once my rules were live, Defender took the Encoded PowerShell alert and the Run Key Persistence alert — both on victim-a, both tied to the same user — and merged them into one incident. It named it on its own: **"Multi-stage incident involving Execution & Persistence on one endpoint."**
 
 ![Multi-stage incident attack story graph](screenshots/19-multistage-attack-story.png)
-*The graph shows both alerts (2/2) tied to victim-a. The host shows as Isolated — that's my containment step, visible right in the incident.*
+*The graph shows both alerts (2/2) tied to victim-a. The host shows as Isolated — the containment step, visible right in the incident.*
 
 ---
 
@@ -104,7 +104,7 @@ RECOVER     Released victim-a from isolation
 ```
 
 ![Action Center incident response history](screenshots/20-action-center-ir-history.png)
-*The Action Center logs the whole response: isolation, Live Response sessions, the failed cleanup of a file that was never there, the folder check, and the script that wiped the foothold.*
+*The Action Center logs the whole response: isolation, Live Response sessions, the failed cleanup of a file that was never there, the folder check, and the script that removed the foothold.*
 
 ---
 
