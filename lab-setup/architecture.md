@@ -44,7 +44,7 @@ Three machines. Two are victims protected by the EDR. One is the attacker. The t
 | `labvictim` | victim-a | Local account I brute-forced. Cracked password: `P@ssw0rd123!`. Disabled during cleanup. |
 | `labtest` | victim-b | Account used for the RDP jump into victim-b. Disabled during cleanup. |
 
-## Fixing the cloned machines (a real headache)
+## Fixing the cloned machines (HEADACHE)
 
 Both Windows 11 VMs started with the same hostname, `Advanced.lab.local`, because victim-b was a clone of victim-a. Both were also stuck on a `lab.local` domain whose controller was gone.
 
