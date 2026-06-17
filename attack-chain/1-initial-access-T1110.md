@@ -26,7 +26,7 @@ It cracked the local `labvictim` account:
 
 ## What Defender recorded
 
-The `DeviceLogonEvents` table caught the classic brute-force pattern: a bunch of `LogonFailed` events (Network / NTLM) from the attacker IP `192.168.74.136`, then a `LogonSuccess`.
+The `DeviceLogonEvents` table captured the classic brute-force pattern: multiple `LogonFailed` events (Network / NTLM) from the attacker IP `192.168.74.136`, followed by a `LogonSuccess`.
 
 ```kusto
 DeviceLogonEvents
@@ -38,22 +38,22 @@ DeviceLogonEvents
 ```
 
 ![DeviceLogonEvents showing failed then successful logons](../screenshots/01-stage1-logon-events.png)
-*Failed logons, then a success, all from 192.168.74.136. That's a brute force that worked.*
+*Failed logons followed by a success, all from 192.168.74.136 — a successful brute force.*
 
 ## What Defender did
 
-Defender saw all of it. Every failed and successful logon was recorded and easy to query. But the built-in detection raised **no incident**. Repeated NTLM failures ending in a success, with a real (if weak) password, didn't cross Defender's threshold.
+Defender recorded all of it. Every failed and successful logon was captured and easy to query. But the built-in detection raised **no incident**. Repeated NTLM failures ending in a success, with a real (if weak) password, did not cross Defender's threshold.
 
 This is the first example of the project's theme: having the data is not the same as catching the attack.
 
 ## Tier 1 triage
 
-If this had alerted, here's how I'd work it:
+If this had alerted, the triage process would be:
 
 - **Pattern:** a burst of `LogonFailed` from one IP, ending in `LogonSuccess` for the same account. High-confidence brute force.
-- **Source:** the IP (192.168.74.136) is on the lab network but isn't a known admin box. Suspicious.
-- **Verdict:** True Positive (in the lab). In a real job I'd check if that IP is an expected jump box and whether this account normally uses RDP.
+- **Source:** the IP (192.168.74.136) is on the lab network but is not a known admin host. Suspicious.
+- **Verdict:** True Positive (in the lab). In a production environment I would check whether that IP is an expected jump box and whether this account normally uses RDP.
 
 ## Detection takeaway
 
-You can catch RDP brute force from `DeviceLogonEvents` by counting failures per source IP in a time window and flagging the success after. Default Defender didn't do that here on its own. That's the whole reason detection engineering and hunting matter, even with a good EDR.
+You can catch RDP brute force from `DeviceLogonEvents` by counting failures per source IP in a time window and flagging the success that follows. Default Defender did not do that here on its own. That is the reason detection engineering and hunting matter, even with a good EDR.
