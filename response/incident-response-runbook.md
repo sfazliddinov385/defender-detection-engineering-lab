@@ -1,6 +1,6 @@
 # Incident Response Runbook
 
-This is the full incident response I ran on the compromised machine, victim-a, after my custom rules made the multi-stage incident. I followed the **NIST SP 800-61** framework. The eradication step also lines up with the SANS PICERL model.
+This is the full incident response I ran on the compromised machine, victim-a, after my custom rules created the multi-stage incident. I followed the **NIST SP 800-61** framework. The eradication step also lines up with the SANS PICERL model.
 
 ## Frameworks I used
 
@@ -26,13 +26,13 @@ RECOVER     Released victim-a from isolation
 
 ## Detect
 
-My four custom rules (see [detections/custom-detection-rules.md](../detections/custom-detection-rules.md)) made alerts that Defender grouped into incidents:
+My four custom rules (see [detections/custom-detection-rules.md](../detections/custom-detection-rules.md)) created alerts that Defender grouped into incidents:
 
-- **Incident 2** — "Multi-stage incident involving Execution & Persistence on one endpoint" (Medium, 2/2 alerts, Custom detection, victim-a). The big one.
+- **Incident 2** — "Multi-stage incident involving Execution & Persistence on one endpoint" (Medium, 2/2 alerts, Custom detection, victim-a). The primary incident.
 - **Incident 3** — "RDP Lateral Movement Detected on victim-b" (Medium, Custom detection, victim-b).
 - **Incident 1** — "EICAR_Test_File malware was prevented" (Informational, Antivirus, victim-a). The built-in catch, for contrast.
 
-The EICAR contrast is worth a note. A signature-based antivirus engine *did* catch the EICAR test file and block it on its own. But the behavioral attack went undetected by default. Signatures caught a known-bad string. Behavioral detection missed a credential-based, LOLBin attack. That contrast is the whole point in one example.
+The EICAR contrast is worth a note. A signature-based antivirus engine *did* catch the EICAR test file and block it on its own. But the behavioral attack went undetected by default. Signatures caught a known-bad string. Behavioral detection missed a credential-based, LOLBin attack. That contrast is the thesis in one example.
 
 ## Triage
 
@@ -49,32 +49,32 @@ I isolated victim-a from the Defender portal (Device page → "..." → Isolate 
 ![Action Center showing the isolate device action](../screenshots/20-action-center-ir-history.png)
 *The Action Center History logs the whole response. The "Isolate device" entry on victim-a (source: Portal, status: Completed) is the containment step.*
 
-The isolation also shows right in the incident graph, where victim-a says **Isolated** in red:
+The isolation also shows in the incident graph, where victim-a is marked **Isolated** in red:
 
 ![Multi-stage incident showing victim-a isolated](../screenshots/19-multistage-attack-story.png)
 *Containment in the graph: victim-a marked Isolated inside the incident.*
 
-A note on isolated machines: once a machine is isolated it's off the network for normal access, so I reached its console straight through the VMware window for local commands. Live Response still works through the Defender channel even while the machine is isolated, because that channel is the EDR's own path, not regular network access.
+A note on isolated machines: once a machine is isolated it is off the network for normal access, so I reached its console directly through the VMware window for local commands. Live Response still works through the Defender channel even while the machine is isolated, because that channel is the EDR's own path, not regular network access.
 
 ## Investigate and eradicate
 
 ### Investigate (Live Response)
 
-I turned on Live Response in Settings → Endpoints → Advanced features (Live Response, Live Response for Servers, and unsigned script execution), waited a few minutes for it to kick in, then opened a Live Response session on victim-a.
+I turned on Live Response in Settings → Endpoints → Advanced features (Live Response, Live Response for Servers, and unsigned script execution), waited a few minutes for it to propagate, then opened a Live Response session on victim-a.
 
-In the shell I checked if the payload was actually on disk:
+In the shell I checked whether the payload was actually on disk:
 
 ```
 dir "C:\Users\Public"
 ```
 
-The folder did **not** have `beacon.ps1`. Trying to remove the file confirmed it:
+The folder did **not** have `beacon.ps1`. The attempt to remove the file confirmed it:
 
 ```
 remediate file "C:\Users\Public\beacon.ps1"   →  Failed (file not found)
 ```
 
-That's proof the payload file was never dropped. The **Run key itself was the real foothold**, not a file. The Action Center logs both the `dir` command (Completed) and the `remediate file` try (Failed), which together make the point.
+This is proof the payload file was never dropped. The **Run key itself was the real foothold**, not a file. The Action Center logs both the `dir` command (Completed) and the `remediate file` attempt (Failed), which together make the point.
 
 ### Eradicate
 
@@ -84,19 +84,19 @@ I removed the foothold two ways — first locally, then again through Live Respo
 
 ```powershell
 Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "Updater"
-net user labvictim /active:no            # disable the cracked account
+net user labvictim /active:no            # disable the brute-forced account
 New-NetFirewallRule -DisplayName "Block Attacker Kali" -Direction Inbound -RemoteAddress 192.168.74.136 -Action Block
 Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "Updater"
 # → "Property Updater does not exist"  == cleanup confirmed
 ```
 
-**On victim-b** (the jump target):
+**On victim-b** (the lateral movement target):
 
 ```powershell
 net user labtest /active:no              # disable the lateral-movement account
 ```
 
-**Again through Live Response** (the EDR way): I made `eradicate.ps1`, uploaded it to the Live Response library (console "..." → Upload file to library), checked it with `library`, then ran `run eradicate.ps1` on victim-a.
+**Again through Live Response** (the EDR way): I created `eradicate.ps1`, uploaded it to the Live Response library (console "..." → Upload file to library), checked it with `library`, then ran `run eradicate.ps1` on victim-a.
 
 ```powershell
 Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "Updater" -ErrorAction SilentlyContinue
@@ -108,7 +108,7 @@ Write-Output "=== Eradication complete via Live Response ==="
 ```
 
 ![Live Response running eradicate.ps1](../screenshots/17-liveresponse-eradicate.png)
-*Live Response on victim-a running eradicate.ps1: the firewall block rule (Block Attacker Kali LR, Enabled: True, Action: Block) is made, the verify banner shows no Run-key output, and the last banner confirms the cleanup through the EDR.*
+*Live Response on victim-a running eradicate.ps1: the firewall block rule (Block Attacker Kali LR, Enabled: True, Action: Block) is created, the verify banner shows no Run-key output, and the last banner confirms the cleanup through the EDR.*
 
 The cleanup steps in one place:
 
@@ -117,7 +117,7 @@ The cleanup steps in one place:
 | Remove Run key `Updater` | victim-a (HKCU) | Removed |
 | Disable account `labvictim` | victim-a | "The command completed successfully" |
 | Disable account `labtest` | victim-b | "The command completed successfully" |
-| Block attacker IP 192.168.74.136 | victim-a firewall | Inbound block rule made |
+| Block attacker IP 192.168.74.136 | victim-a firewall | Inbound block rule created |
 | Re-run cleanup via Live Response | victim-a | Done through the EDR |
 
 ## Verify
@@ -129,10 +129,14 @@ I confirmed the Run key was gone two ways:
 
 ## Recover
 
-I released victim-a from isolation (Device page → "..." → Release from isolation), with a comment noting the cleanup was confirmed. That closes the cycle and puts the machine back to normal.
+I released victim-a from isolation (Device page → "..." → Release from isolation), with a comment noting the cleanup was confirmed. That closes the cycle and returns the machine to normal.
 
 ---
+## Lessons learned
 
-## Tier 1 vs Tier 2
+A few takeaways from running the full cycle:
 
-Worth noting for a SOC. Detection, triage, and the verdict (True Positive) are Tier 1 work. Containment by portal isolation is usually Tier 1 or a Tier 1/Tier 2 handoff. Hands-on Live Response cleanup and cross-host work lean toward Tier 2 / incident handler. Running the whole cycle end to end in the lab shows the full pipeline, while being clear about where the tier lines usually sit in a staffed SOC.
+- **The registry value was the real foothold, not a file.** The payload script was never on disk. The persistence lived entirely in the Run key. The lesson: don't assume a referenced file exists — verify, and remediate the mechanism (the key), not just the artifact.
+- **Default detection had full visibility but raised nothing.** Every stage was in telemetry, yet no built-in incident fired. Visibility is not detection. Custom detection engineering closed the gap.
+- **Correlation depends on shared entities.** The two same-host, same-user alerts merged; the cross-host lateral-movement alert stayed separate. Tighter entity overlap would have grouped them. Worth knowing when reading how an EDR builds incidents.
+- **Live Response works through isolation.** The EDR channel stayed up even with the host network-isolated, which let me eradicate remotely without lifting containment.
