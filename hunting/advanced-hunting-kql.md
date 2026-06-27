@@ -1,20 +1,24 @@
 # Advanced Hunting KQL Reference
 
-Every reusable KQL query from the project, in one place. They're grouped by the table they run against. Time and host filters are there for convenience — widen or drop them when you hunt.
+Reusable KQL queries from the project, grouped by Microsoft Defender table. These queries were used for hunting, validation, and custom detection rule logic.
+
+Time and host filters are included for convenience. Widen or remove them when doing broader hunting.
 
 ## Table notes
 
-A few table-specific things I learned that shape how these queries are written:
+A few table-specific lessons shaped how these queries were written:
 
-- **`DeviceNetworkEvents` has no `AccountName` / `AccountSid`.** Use `InitiatingProcessAccountName` / `InitiatingProcessAccountSid`. Using `AccountName` here throws "Failed to resolve scalar expression named 'AccountName'".
-- **`DeviceLogonEvents` and `DeviceProcessEvents` have `AccountName` / `AccountSid` directly** (no `Initiating` prefix needed for the acting account).
-- **Detection rules need entity columns.** Put `DeviceId` and a SID column in the projection so the rule can map entities for grouping. `ReportId` is also required for detection rules.
+- **`DeviceNetworkEvents` does not have `AccountName` or `AccountSid`.** Use `InitiatingProcessAccountName` and `InitiatingProcessAccountSid` instead. Using `AccountName` in this table causes the error: `Failed to resolve scalar expression named 'AccountName'`.
+- **`DeviceLogonEvents` and `DeviceProcessEvents` include `AccountName` and `AccountSid` directly.** No `Initiating` prefix is needed for the acting account in these tables.
+- **Custom detection rules need entity columns.** Include `DeviceId` and a SID column in the projection so Defender can map alerts to devices and users. `ReportId` is also required for custom detection rules.
 
 ---
 
 ## DeviceLogonEvents
 
-### Brute force: failed-then-success (Stage 1)
+### Brute force: failed-then-success pattern
+
+Used to review Stage 1 initial access activity against `victim-a`.
 
 ```kusto
 DeviceLogonEvents
@@ -25,7 +29,9 @@ DeviceLogonEvents
 | order by Timestamp asc
 ```
 
-### RDP lateral movement: inbound RemoteInteractive logons (Stage 5)
+### RDP lateral movement: inbound RemoteInteractive logons
+
+Used to review Stage 5 lateral movement into `victim-b`.
 
 ```kusto
 DeviceLogonEvents
@@ -36,7 +42,9 @@ DeviceLogonEvents
 | order by Timestamp desc
 ```
 
-### RDP lateral movement: detection form (Rule 4)
+### RDP lateral movement detection rule
+
+Detection form for Rule 4. Flags successful inbound RDP logons with a remote IP.
 
 ```kusto
 DeviceLogonEvents
@@ -50,7 +58,9 @@ DeviceLogonEvents
 
 ## DeviceProcessEvents
 
-### Encoded PowerShell (Stage 2 / Rule 1)
+### Encoded PowerShell execution
+
+Used for Stage 2 execution and Rule 1. Flags PowerShell commands using encoded command options.
 
 ```kusto
 DeviceProcessEvents
@@ -61,7 +71,9 @@ DeviceProcessEvents
           ProcessCommandLine, InitiatingProcessFileName, ReportId
 ```
 
-### Discovery commands (Stage 4)
+### Discovery commands
+
+Used to review Stage 4 discovery activity on `victim-a`.
 
 ```kusto
 DeviceProcessEvents
@@ -77,7 +89,9 @@ DeviceProcessEvents
 
 ## DeviceRegistryEvents
 
-### Run key persistence: hunting form (Stage 3)
+### Run key persistence hunting query
+
+Used to review Stage 3 persistence activity. Searches for Run key changes.
 
 ```kusto
 DeviceRegistryEvents
@@ -88,16 +102,18 @@ DeviceRegistryEvents
 | order by Timestamp desc
 ```
 
-### Run key persistence: tuned detection form (Rule 3)
+### Tuned Run key persistence detection rule
+
+Detection form for Rule 3. Filters out common benign apps and focuses on script-based or suspicious Run key values.
 
 ```kusto
 DeviceRegistryEvents
 | where RegistryKey has @"CurrentVersion\Run"
 | where ActionType in ("RegistryValueSet", "RegistryKeyCreated")
 | where InitiatingProcessAccountName !~ "system"
-// skip normal apps that use Run keys
+// Skip normal apps that commonly use Run keys
 | where InitiatingProcessFileName !in~ ("msedge.exe", "chrome.exe", "OneDrive.exe", "Teams.exe")
-// only flag scripts or sneaky folders
+// Focus on scripts and suspicious user-writable paths
 | where RegistryValueData has_any (".ps1", ".vbs", ".bat", ".js", "\\Public\\", "\\Temp\\", "\\AppData\\")
 | project Timestamp, DeviceId, DeviceName, InitiatingProcessAccountName, InitiatingProcessAccountSid,
           RegistryKey, RegistryValueName, RegistryValueData, InitiatingProcessFileName, ReportId
@@ -107,7 +123,9 @@ DeviceRegistryEvents
 
 ## DeviceNetworkEvents
 
-### C2 / beacon to a specific host (Stage 6)
+### C2 beacon to attacker host
+
+Used to review Stage 6 command and control traffic from `victim-a` to the Kali attacker machine.
 
 ```kusto
 DeviceNetworkEvents
@@ -118,7 +136,9 @@ DeviceNetworkEvents
 | order by Timestamp desc
 ```
 
-### PowerShell out to common C2 ports: detection form (Rule 2)
+### PowerShell outbound network connection detection rule
+
+Detection form for Rule 2. Flags PowerShell making outbound connections to common web and C2 ports.
 
 ```kusto
 DeviceNetworkEvents
